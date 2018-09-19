@@ -61,8 +61,9 @@ OpCodes = Enumeration("OpCodes", [
     "OP_WITHIN", "OP_RIPEMD160", "OP_SHA1", "OP_SHA256", "OP_HASH160",
     "OP_HASH256", "OP_CODESEPARATOR", "OP_CHECKSIG", "OP_CHECKSIGVERIFY", "OP_CHECKMULTISIG",
     "OP_CHECKMULTISIGVERIFY",
-    ("OP_CHECKLOCKTIMEVERIFY", 177), # previously OP_NOP2
-    ("OP_CHECKSEQUENCEVERIFY", 178), # previously OP_NOP3
+    ("OP_NOP1", 0xB0),
+    "OP_CHECKLOCKTIMEVERIFY", "OP_CHECKSEQUENCEVERIFY",
+    "OP_NOP4", "OP_NOP5", "OP_NOP6", "OP_NOP7", "OP_NOP8", "OP_NOP9", "OP_NOP10",
     ("OP_CHECKDATASIG", 186),
     ("OP_CHECKDATASIGVERIFY", 187),
     ("OP_SINGLEBYTE_END", 0xF0),
@@ -247,30 +248,43 @@ class ScriptOutput(namedtuple("ScriptAddressTuple", "script")):
                 script.extend(Script.push_data(binascii.unhexlify(word)))
         return ScriptOutput(bytes(script))
 
-    def to_ui_string(self, hex_only = False):
-        '''Convert to user-readable OP-codes (plus text), eg OP_RETURN (12) Hello there!
-           Or, to a hexadecimal string if that fails.
-           Note that this function is the inverse of from_string() only if called with hex_only = True!'''
-        if self.script and not hex_only:
-            try:
-                ret = ''
-                ops = Script.get_ops(self.script)
-                for op in ops:
-                    if ret: ret += ", "
-                    def lookup(x):
-                        return OpCodes.reverseLookup.get(x, ('('+str(x)+')'))
-                    if isinstance(op, tuple):
-                        opData = op[1].decode(errors='replace') if isinstance(op[1], bytes) else str(op[1])
-                        ret += lookup(op[0]) + " " + opData
-                    elif isinstance(op, int):
-                        ret += lookup(op)
-                    else:
-                        ret += '[' + (op.hex() if isinstance(op, bytes) else str(op)) + ']'
-                return ret
-            except ScriptError:
-                # Truncated script -- so just default to normal 'hex' encoding below.
-                pass      
-        return self.script.hex()
+    def to_ui_string(self,):
+        '''Convert to user-readable OP-codes (plus pushdata as text if possible)
+        eg OP_RETURN (12) "Hello there!"
+        '''
+        try:
+            ops = Script.get_ops(self.script)
+            parts = []
+            for op in ops:
+                def lookup(x):
+                    return OpCodes.reverseLookup.get(x, ('('+str(x)+')'))
+                if isinstance(op, tuple):
+                    op, data = op
+                    if data is None:
+                        data = b''
+
+                    # Attempt to make a friendly string, or fail to hex
+                    try:
+                        astext = data.decode('utf8')
+
+                        friendlystring = repr(astext)
+
+                        # if too many escaped characters, it's too ugly!
+                        if friendlystring.count('\\')*3 > len(astext):
+                            friendlystring = None
+                    except:
+                        friendlystring = None
+
+                    if not friendlystring:
+                        friendlystring = data.hex()
+
+                    parts.append(lookup(op) + " " + friendlystring)
+                else: # isinstance(op, int):
+                    parts.append(lookup(op))
+            return ', '.join(parts)
+        except ScriptError:
+            # Truncated script -- so just default to hex string.
+            return self.script.hex()
 
     def to_script(self):
         return self.script
