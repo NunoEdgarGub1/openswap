@@ -1,4 +1,5 @@
 
+
 from electroncash.i18n import _
 from electroncash.address import Address
 import electroncash.web as web
@@ -7,6 +8,7 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
+from lib.bchmessage import Channel
 from .util import *
 from .qrtextedit import ShowQRTextEdit
 
@@ -73,6 +75,10 @@ class BCHMessageDialog(QDialog):
         b.clicked.connect(lambda: self.write_message())
         hbox.addWidget(b)
 
+        b = QPushButton(_("Send In Channel"))
+        b.clicked.connect(lambda: self.open_channel())
+        hbox.addWidget(b)
+
         hbox.addStretch(1)
 
         hbox.addWidget(CloseButton(self))
@@ -103,6 +109,50 @@ class BCHMessageDialog(QDialog):
             self.parent.show_qrcode(text, 'Address', parent=self)
         except Exception as e:
             self.show_message(str(e))
+
+    def open_channel(self):
+        d = WindowModalDialog(self, _('Send Message In Channel'))
+        d.setMinimumSize(610, 290)
+        layout = QGridLayout(d)
+        channel_e = QLineEdit()
+        address_e = QLineEdit()
+        address_e.setReadOnly(True)
+
+        def set_address():
+            address = Channel.from_name(channel_e.text()).address
+            address_e.setText(address)
+
+        channel_e.textChanged.connect(set_address)
+
+        layout.addWidget(QLabel(_('Channel Name')), 1, 0)
+        layout.addWidget(channel_e, 1, 1)
+
+        layout.addWidget(QLabel(_('Address')), 2, 0)
+        layout.addWidget(address_e, 2, 1)
+
+
+        message_e = QTextEdit()
+        layout.addWidget(QLabel(_('Message')), 3, 0)
+        layout.addWidget(message_e, 3, 1)
+        layout.setRowStretch(2,3)
+
+
+        hbox = QHBoxLayout()
+
+        def prev():
+            print(message_e.text())
+            d.accept()
+
+
+        b = QPushButton(_("Send"))
+        b.clicked.connect(prev)
+        hbox.addWidget(b)
+
+        b = QPushButton(_("Close"))
+        b.clicked.connect(d.accept)
+        hbox.addWidget(b)
+        layout.addLayout(hbox, 4, 1)
+        d.exec_()
 
     def write_message(self, to_pubkey=''):
         d = WindowModalDialog(self, _('Write New BCHMessage'))

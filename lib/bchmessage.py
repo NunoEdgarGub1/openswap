@@ -317,6 +317,8 @@ class Channel:
         # redeemscript = PUSH(chanid)
         self.redeemscript = bytes((len(self.chanid), )) + self.chanid
         self.address = Address.from_multisig_script(self.redeemscript)
+        self.address = Address.to_storage_string(self.address)
+
 
     def auth_encrypt(self, source_pubkey, message):
         """Authenticated encrypt; adds 32 bytes (IV, MAC).
@@ -368,7 +370,7 @@ class Channel:
         h.update(namebytes)
         digest = h.digest()
         chankey = digest[32:]
-        self = cls.__init__(chankey)
+        self = Channel(chankey)
         self.name = name
         return self
 
